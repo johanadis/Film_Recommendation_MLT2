@@ -569,9 +569,9 @@ Evaluasi dilakukan dengan menggunakan tiga metrik standar yang umum digunakan da
 #### **2.3 F1-Score@10**
 - **Definisi**: F1-Score@10 adalah rata-rata harmonik dari Precision@10 dan Recall@10, yang memberikan gambaran keseimbangan antara ketepatan dan kelengkapan.
 - **Rumus**:
-  $$
-  \text{F1-Score@10} = 2 \times \frac{\text{Precision@10} \times \text{Recall@10}}{\text{Precision@10} + \text{Recall@10}}
-  $$
+  
+  $$\text{F1-Score@10} = 2 \times \frac{\text{Precision@10} \times \text{Recall@10}}{\text{Precision@10} + \text{Recall@10}}$$
+
 - **Interpretasi**: Nilai F1-Score@10 yang tinggi menunjukkan bahwa sistem tidak hanya akurat dalam memberikan rekomendasi yang relevan, tetapi juga lengkap dalam menangkap preferensi pengguna berdasarkan genre.
 
 ---
@@ -619,18 +619,15 @@ Berikut adalah contoh perhitungan manual hasil evaluasi untuk 3 genre film input
    - The Shadow: 3/4 = 0.75  (3 genre cocok dari 4 genre).
 
 - Rata-rata Precision@10:
-  $$
-  \text{Precision@10} = \frac{1.0 + 1.0 + 1.0 + 1.0 + 1.0 + 1.0 + 1.0 + 0.75 + 1.0 + 0.75}{10} = 0.94
-  $$
+  
+  $$\text{Precision@10} = \frac{1.0 + 1.0 + 1.0 + 1.0 + 1.0 + 1.0 + 1.0 + 0.75 + 1.0 + 0.75}{10} = 0.94$$
 
 
 #### **4.2 Perhitungan Recall@10**
 
 - Berikut contoh perhitungan manual Recall, Misalnya semua film yang direkomendasikan memiliki **ketiga genre** yang sama persis dengan film input (misalnya: Action, Adventure, Sci-Fi), maka:
 
-$$
-\text{Recall}_i = \frac{3}{3} = 1.0
-$$
+$$\text{Recall}_i = \frac{3}{3} = 1.0$$
 
 - Recall untuk setiap film, yaitu:
 
@@ -646,17 +643,15 @@ $$
    - The Shadow: 1.0
 
 - Rata-rata Recall@10:
-  $$
-  \text{Recall@10} = \frac{1.0 + 1.0 + 1.0 + 1.0 + 1.0 + 1.0 + 1.0 + 1.0 + 1.0 + 1.0}{10} = 1.0
-  $$
+  
+  $$\text{Recall@10} = \frac{1.0 + 1.0 + 1.0 + 1.0 + 1.0 + 1.0 + 1.0 + 1.0 + 1.0 + 1.0}{10} = 1.0$$
 
 
 
 #### **4.3 Perhitungan F1-Score@10**
 - Menggunakan nilai Precision@10 (0.94) dan Recall@10 (1.0):
-  $$
-  \text{F1-Score@10} = 2 \times \frac{0.94 \times 1.0}{0.94 + 1.0} = 2 \times \frac{0.94}{1.94} \approx 0.969
-  $$
+  
+  $$\text{F1-Score@10} = 2 \times \frac{0.94 \times 1.0}{0.94 + 1.0} = 2 \times \frac{0.94}{1.94} \approx 0.969$$
 
 #### **4.4 Ringkasan Hasil**
 - **Precision@10**: 0.94
