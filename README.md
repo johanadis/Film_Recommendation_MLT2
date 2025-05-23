@@ -547,7 +547,9 @@ Evaluasi dilakukan dengan menggunakan tiga metrik standar yang umum digunakan da
 #### **2.1 Precision@10**
 - **Definisi**: Precision@10 mengukur proporsi genre dalam film yang direkomendasikan yang relevan dengan genre film input. Dalam konteks ini, "relevan" berarti genre film rekomendasi termasuk dalam himpunan genre film input.
 - **Rumus**:
+
   $$\text{Precision@10} = \frac{1}{10} \sum_{i=1}^{10} \frac{|G_{\text{input}} \cap G_i|}{|G_i|}$$
+
   - $G_{\text{input}}$: Himpunan genre film input.  
   - $G_i$: Himpunan genre film rekomendasi ke-i.  
   - $|G_{\text{input}} \cap G_i|$: Jumlah genre yang sama antara film input dan film rekomendasi ke-i.  
@@ -557,9 +559,9 @@ Evaluasi dilakukan dengan menggunakan tiga metrik standar yang umum digunakan da
 #### **2.2 Recall@10**
 - **Definisi**: Recall@10 mengukur proporsi genre film input yang berhasil ditemukan dalam genre film yang direkomendasikan. Metrik ini mengevaluasi kelengkapan sistem dalam menangkap preferensi pengguna.
 - **Rumus**:
-  $$
-  \text{Recall@10} = \frac{1}{10} \sum_{i=1}^{10} \frac{|G_{\text{input}} \cap G_i|}{|G_{\text{input}}|}
-  $$
+  
+  $$\text{Recall@10} = \frac{1}{10} \sum_{i=1}^{10} \frac{|G_{\text{input}} \cap G_i|}{|G_{\text{input}}|}$$
+  
   - $|G_{\text{input}}|$: Jumlah total genre dalam film input.  
 
 - **Interpretasi**: Nilai Recall@10 yang tinggi menunjukkan bahwa sistem mampu mencakup sebagian besar atau seluruh genre dari film input dalam daftar rekomendasi, yang menandakan kelengkapan yang baik.
