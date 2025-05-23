@@ -547,9 +547,7 @@ Evaluasi dilakukan dengan menggunakan tiga metrik standar yang umum digunakan da
 #### **2.1 Precision@10**
 - **Definisi**: Precision@10 mengukur proporsi genre dalam film yang direkomendasikan yang relevan dengan genre film input. Dalam konteks ini, "relevan" berarti genre film rekomendasi termasuk dalam himpunan genre film input.
 - **Rumus**:
-  $$
-  \text{Precision@10} = \frac{1}{10} \sum_{i=1}^{10} \frac{|G_{\text{input}} \cap G_i|}{|G_i|}
-  $$
+  $$\text{Precision@10} = \frac{1}{10} \sum_{i=1}^{10} \frac{|G_{\text{input}} \cap G_i|}{|G_i|}$$
   - $G_{\text{input}}$: Himpunan genre film input.  
   - $G_i$: Himpunan genre film rekomendasi ke-i.  
   - $|G_{\text{input}} \cap G_i|$: Jumlah genre yang sama antara film input dan film rekomendasi ke-i.  
@@ -605,7 +603,7 @@ Berikut adalah contoh perhitungan manual hasil evaluasi untuk 3 genre film input
   10. *The Shadow*: ["Action", "Adventure", "Fantasy", "Science Fiction"]
 
 #### **4.1 Perhitungan Precision@10**
-- Berikut contoh perhitungan manual untuk setiap film rekomendasi, proporsi genre yang relevan dihitung sebagai $$\frac{|G_{\text{input}} \cap G_i|}{|G_i|} $$
+- Berikut contoh perhitungan manual untuk setiap film rekomendasi, proporsi genre yang relevan dihitung sebagai $$\frac{|G_{\text{input}} \cap G_i|}{|G_i|}$$
 - Precision untuk setiap film, yaitu:
    - Man of Steel: 3/3 = 1.0 (3 genre cocok dari 3 genre).
    - Superman II: 3/3 = 1.0 
