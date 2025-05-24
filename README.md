@@ -411,118 +411,202 @@ Berikut adalah langkah-langkah rinci yang dilakukan dalam proses *data preproces
 Bagian ini menjelaskan secara mendalam proses pembangunan model sistem rekomendasi berbasis *content-based filtering*, termasuk langkah-langkah pemodelan, parameter yang digunakan, hasil rekomendasi, evaluasi, dan visualisasi yang mendukung.
 
 ### Pendekatan Content-Based Filtering
-*Content-based filtering* merekomendasikan film berdasarkan kesamaan konten dengan film referensi. Fitur yang digunakan meliputi teks (genre, kata kunci, pemeran, overview, tagline) dan numerik (popularitas).
+*Content-based filtering* merekomendasikan film berdasarkan kesamaan konten dengan film referensi. Fitur yang digunakan meliputi teks (genre, kata kunci, pemeran, overview, tagline) dan numerik (popularitas). Pada tahap ini, akan membangun sistem rekomendasi berbasis konten menggunakan pendekatan berikut:
 
-#### 1. Ekstraksi Fitur
-- **Fitur Teks**:
-  - **Proses**: Kolom `combined_features` diubah menjadi matriks TF-IDF menggunakan `TfidfVectorizer` dari Scikit-learn.
-  - **Parameter**:
-    - `stop_words='english'`: Menghapus kata umum seperti "the", "and".
-    - `max_features=5000`: Membatasi dimensi untuk efisiensi komputasi.
-    - `min_df=3`: Mengabaikan kata yang muncul di kurang dari 3 film untuk mengurangi noise.
-  - **Alasan Pemilihan Parameter**:
-    - `stop_words` meningkatkan fokus pada kata bermakna.
-    - `max_features` menyeimbangkan antara representasi fitur dan performa.
-    - `min_df` memfilter kata yang terlalu jarang, yang cenderung tidak relevan.
-  - **Hasil**: Matriks sparse (4803, 5000) yang mewakili fitur teks setiap film.
-- **Fitur Numerik**:
-  - **Proses**: Kolom `popularity` dinormalisasi menggunakan `MinMaxScaler`.
-  - **Alasan**: Menghindari dominasi skala dalam perhitungan kemiripan.
+#### **Langkah-langkah Implementasi**
 
-#### 2. Pengukuran Kemiripan
-- **Metode**: *Cosine similarity* dihitung untuk semua pasangan film berdasarkan matriks fitur gabungan.
-- **Formula**:
-  $$
-  \text{cosine\_similarity}(A, B) = \frac{A \cdot B}{\|A\| \|B\|}
-  $$
-- **Proses**:
-  - Menggunakan `cosine_similarity` dari Scikit-learn.
-  - Contoh kode:
-    ```python
-    from sklearn.metrics.pairwise import cosine_similarity
-    cosine_sim = cosine_similarity(final_matrix)
-    ```
-- **Alasan**: *Cosine similarity* ideal untuk data sparse seperti matriks TF-IDF karena mengukur kesamaan sudut vektor, bukan magnitudo.
+##### **1. Menentukan Nama Film Referensi (Input)**  
 
-#### 3. Pembangunan Model Rekomendasi
-- **Fungsi Rekomendasi**:
-  - **Deskripsi**: Fungsi `get_recommendations()` menerima judul film dan mengembalikan 10 film teratas berdasarkan skor kemiripan.
+- **Penjelasan**: Variabel `nama_film` menyimpan judul film yang akan digunakan sebagai acuan untuk rekomendasi, dalam hal ini adalah "Superman". Nama ini akan digunakan untuk mencari film serupa berdasarkan fitur tertentu (misalnya, genre atau fitur lain yang sudah diolah sebelumnya dalam `feature_mat`).
+
+
+##### **2. Membuat Mapping dari Judul Film ke Indeks**  
+
+- **Penjelasan**:
+  - Kode ini membuat **pemetaan** (mapping) antara judul film (kolom `'title'` dalam DataFrame `df_pre`) dengan indeks barisnya di DataFrame.
+  - `pd.Series` digunakan untuk membuat Series dengan indeks berupa judul film dan nilai berupa indeks baris dari DataFrame `df_pre`.
+  - `drop_duplicates()` memastikan tidak ada duplikasi judul film dalam mapping, sehingga setiap judul film memiliki indeks unik.
+  - **Tujuan**: Memudahkan pencarian indeks film berdasarkan judulnya untuk proses rekomendasi.
+
+
+##### **3. Menghitung Cosine Similarity Antar Film**  
+
+- **Penjelasan**:
+  - Fungsi `cosine_similarity` dari library seperti `scikit-learn` digunakan untuk menghitung **kemiripan kosinus** (cosine similarity) antara semua pasangan film dalam matriks fitur `feature_mat`.
+  - `feature_mat` diasumsikan sebagai matriks yang berisi representasi numerik dari fitur film (misalnya, vektor genre, deskripsi, atau fitur lain yang sudah diproses sebelumnya).
+  - Hasilnya adalah matriks `cos_sim` berukuran NxN (dengan N adalah jumlah film), di mana setiap elemen `(i, j)` menunjukkan skor kemiripan antara film ke-i dan film ke-j.
+  - Skor kemiripan berkisar antara 0 (tidak mirip) hingga 1 (sangat mirip).
+
+
+##### **4. Fungsi get_recommendations**  
+
+- **Penjelasan**:
+  - **Fungsi**: Fungsi ini menghasilkan rekomendasi film berdasarkan judul film yang diberikan (`title`) dan jumlah rekomendasi yang diinginkan (`top_n`, default 10).
   - **Langkah-langkah**:
-    1. Menemukan indeks film input.
-    2. Mengambil skor kemiripan dari matriks `cosine_sim`.
-    3. Mengurutkan skor secara descending.
-    4. Mengembalikan 10 film teratas.
-  - **Contoh Kode**:
-    ```python
-    def get_recommendations(title, cosine_sim=cosine_sim):
-        idx = df[df['title'] == title].index[0]
-        sim_scores = list(enumerate(cosine_sim[idx]))
-        sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
-        sim_scores = sim_scores[1:11]
-        movie_indices = [i[0] for i in sim_scores]
-        return df['title'].iloc[movie_indices], [s[1] for s in sim_scores]
-    ```
+    1. **Cek keberadaan film**: Memeriksa apakah judul film ada dalam `indices`. Jika tidak, mengembalikan pesan bahwa film tidak ditemukan.
+    2. **Ambil indeks film**: Menggunakan `indices[title]` untuk mendapatkan indeks film dari judul yang diberikan.
+    3. **Ambil skor kemiripan**: Mengambil semua skor kemiripan dari film input (`cos_sim[idx]`) dan menggabungkannya dengan indeks film menggunakan `enumerate` untuk melacak film mana yang memiliki skor tersebut.
+    4. **Urutkan berdasarkan kemiripan**: Mengurutkan daftar skor kemiripan dari tertinggi ke terendah (`reverse=True`) dan mengambil `top_n` film teratas (mengabaikan film itu sendiri dengan `[1:top_n+1]`).
+    5. **Ekstrak indeks dan skor**: Memisahkan indeks film yang direkomendasikan (`rec_idx`) dan skor kemiripannya (`similarity_scores`).
+    6. **Buat DataFrame rekomendasi**: Mengambil judul dan genre dari DataFrame `df_pre` untuk indeks yang direkomendasikan, menambahkan kolom `similarity_score`, dan membulatkannya ke 3 desimal.
+  - **Output**: Mengembalikan DataFrame berisi judul film, genre, dan skor kemiripan untuk film yang direkomendasikan.
 
-#### 4. Hasil Rekomendasi
-Film **"Superman"** digunakan sebagai contoh. Berikut adalah hasil rekomendasi beserta skor kemiripannya:
+##### **5. Mendapatkan rekomendasi dengan similarity score**  
 
-| **Film yang Direkomendasikan**     | **Skor Kemiripan** |
-|------------------------------------|--------------------|
-| Man of Steel                      | 0.690              |
-| Superman II                        | 0.648              |
-| Superman III                      | 0.569              |
-| Iron Man 2                         | 0.561              |
-| The Wolverine                      | 0.541              |
-| X-Men: Days of Future Past         | 0.538              |
-| Avatar                             | 0.514              |
-| Suicide Squad                      | 0.512              |
-| Jupiter Ascending                  | 0.508              |
-| The Shadow                         | 0.503              |
+- **Penjelasan**:
+  - Memanggil fungsi `get_recommendations` dengan input `nama_film` ("Superman") dan `top_n=10` untuk mendapatkan 10 film yang paling mirip dengan "Superman".
+  - Hasilnya disimpan dalam variabel `recommendations` sebagai DataFrame yang berisi judul, genre, dan skor kemiripan.
 
-- **Interpretasi**:
-  - **Sekuel dan Tema Superhero**: *Man of Steel*, *Superman II*, dan *Superman III* memiliki skor tertinggi karena berbagi karakter dan tema superhero dengan "Superman".
-  - **Genre Aksi**: Film seperti *Iron Man 2* dan *The Wolverine* direkomendasikan karena genre aksi dan elemen superhero.
-  - **Kemiripan Teks**: *Avatar* dan *Jupiter Ascending* mungkin memiliki kata kunci atau deskripsi serupa (misalnya, petualangan epik).
 
-#### 5. Visualisasi Hasil
-- **Distribusi Skor Kemiripan**:
+##### **6. Menampilkan hasil dengan format yang lebih rapi**  
+
+- **Penjelasan**:
+  - **Cek keberadaan film**: Memeriksa apakah `nama_film` ada dalam `indices`. Jika tidak, menampilkan pesan bahwa film tidak ditemukan.
+  - **Tampilkan genre film input**: Mengambil genre film input dari `df_pre['genres_list']` menggunakan indeks film dan menampilkannya.
+  - **Format tabel rekomendasi**:
+    1. Membuat salinan DataFrame `recommendations` untuk ditampilkan.
+    2. Mengubah kolom `genres_list` (yang mungkin berupa list) menjadi string dengan genre dipisahkan koma menggunakan `', '.join(x)`.
+    3. Mencetak header tabel dengan lebar kolom yang sudah ditentukan (No.id, Judul Film, Genre, Similarity Score).
+    4. Mengiterasi setiap baris di `recommendations_table` untuk menampilkan nomor urut, judul film (maksimal 47 karakter), genre (maksimal 42 karakter), dan skor kemiripan dengan format yang rapi.
+    5. Menggunakan formatting string (`:<`) untuk menjaga penyelarasan teks ke kiri dan memastikan tabel terlihat rapi dengan panjang kolom tetap.
+  - **Output**: Menampilkan tabel rekomendasi dengan format yang mudah dibaca, menunjukkan 10 film yang mirip dengan "Superman" beserta genre dan skor kemiripannya.
+
+
+#### 5. Hasil
+
+Berikut ini merupakan contoh sebagian hasil rekomendasi film yang dihasilkan melalui pendekatan content-based filtering.
+
+    Informasi Film 'Superman':
+    ====================================================================================================
+    Genre: Action, Adventure, Fantasy, Science Fiction
+    Keywords: saving the world, journalist, dc comics, crime fighter, nuclear missile, galaxy, superhero, based on comic book, criminal, sabotage, north pole, midwest, kryptonite, super powers, superhuman strength, aftercreditsstinger, save the day
+    Overview: Mild-mannered Clark Kent works as a reporter at the Daily Planet alongside his crush, Lois Lane − who's in love with Superman. Clark must summon his superhero alter ego when the nefarious Lex Luthor launches a plan to take over the world.
+    Tagline: You'll Believe a Man Can Fly!
+    Cast: Christopher Reeve, Marlon Brando, Margot Kidder, Gene Hackman, Ned Beatty...
+    Popularity: 48.51
+
+    Rekomendasi Film:
+    ====================================================================================================
+
+    14. Man of Steel
+      Similarity Score: 0.688
+      Genre: Action, Adventure, Fantasy, Science Fiction
+      Keywords: saving the world, dc comics, superhero, based on comic book, superhuman, alien invasion, reboot, super powers, dc extended universe
+      Overview: A young boy learns that he has extraordinary powers and is not of this earth. As a young man, he journeys to discover where he came from and what he was sent here to do. But the hero in him must emerg...
+      Tagline: You will believe that a man can fly.
+      Cast: Henry Cavill, Amy Adams, Michael Shannon, Kevin Costner, Diane Lane...
+      Popularity: 99.40
+    ----------------------------------------------------------------------------------------------------
+
+    841. Superman II
+      Similarity Score: 0.636
+      Genre: Action, Adventure, Fantasy, Science Fiction
+      Keywords: saving the world, dc comics, sequel, superhero, based on comic book, loss of virginity, criminal, super powers, phantom zone, rocket fired grenade, crystal machine, superhuman strength, duringcreditsstinger
+      Overview: Three escaped criminals from the planet Krypton test the Man of Steel's mettle. Led by Gen. Zod, the Kryptonians take control of the White House and partner with Lex Luthor to destroy Superman and rul...
+      Tagline: The Man of Steel meets his match!
+      Cast: Gene Hackman, Christopher Reeve, Ned Beatty, Jackie Cooper, Sarah Douglas...
+      Popularity: 30.52
+    ----------------------------------------------------------------------------------------------------
+
+    1238. Superman III
+      Similarity Score: 0.563
+      Genre: Comedy, Action, Adventure, Fantasy, Science Fiction
+      Keywords: saving the world, dc comics, super computer, identity crisis, loss of powers, sequel, superhero, based on comic book, hacking, super powers, superhuman strength
+      Overview: Aiming to defeat the Man of Steel, wealthy executive Ross Webster hires bumbling but brilliant Gus Gorman to develop synthetic kryptonite, which yields some unexpected psychological effects in the thi...
+      Tagline: If the world's most powerful computer can control even Superman...no one on earth is safe.
+      Cast: Christopher Reeve, Richard Pryor, Jackie Cooper, Marc McClure, Annette O'Toole...
+      Popularity: 22.16
+    ----------------------------------------------------------------------------------------------------
+
+    227. The Wolverine
+      Similarity Score: 0.540
+      Genre: Action, Science Fiction, Adventure, Fantasy
+      Keywords: japan, samurai, mutant, world war i, marvel comic, superhero, based on comic book, superhuman, duringcreditsstinger
+      Overview: Wolverine faces his ultimate nemesis - and tests of his physical, emotional, and mortal limits - in a life-changing voyage to modern-day Japan....
+      Tagline: When he's most vulnerable, he's most dangerous.
+      Cast: Hugh Jackman, Hiroyuki Sanada, Famke Janssen, Will Yun Lee, Tao Okamoto...
+      Popularity: 15.95
+    ----------------------------------------------------------------------------------------------------
+    ...
+    ...
+    ...
+
+
+
+#### **Insight:**
+
+**Input Film:** *Superman (1978)*
+
+**Genre:** Action, Adventure, Fantasy, Science Fiction
+
+**Tema utama:** Pahlawan super, menyelamatkan dunia, cinta segitiga (Clark, Lois, Superman), dan konflik dengan Lex Luthor.
+
+#####  **Karakteristik Film ‘Superman’**
+
+* **Topik utama:** Pahlawan super dari DC Comics yang harus menyelamatkan dunia dari penjahat.
+* **Elemen cerita:** Identitas ganda (Clark/Superman), hubungan asmara, ancaman global, kekuatan super, moralitas.
+* **Nuansa:** Inspiratif, penuh aksi, dan penuh harapan (seperti ditunjukkan dari tagline: *"You'll Believe a Man Can Fly!"*).
+
+---
+
+#####  **Rekomendasi Film Berdasarkan Similarity**
+
+Dari daftar rekomendasi berdasarkan *similarity score*, kita bisa menyimpulkan:
+
+ 1. **Film dengan Kemiripan Tinggi (Score > 0.6)**
+
+    * **Man of Steel (0.688)**: Reboot modern Superman, dengan konflik identitas yang serupa, tema penyelamatan dunia, dan asal-usul Krypton.
+    * **Superman II (0.636)**: Sekuel langsung dari film utama, masih mengangkat tokoh dan konflik serupa.
+    * **Superman III (0.563)**: Masih berhubungan, tapi mulai memasukkan unsur komedi dan krisis identitas.
+
+    >   Film yang paling mirip secara struktural, karakter, dan narasi berasal dari waralaba yang sama (*Superman franchise*).
+
+ 2. **Film dari DC Comics Lain**
+
+    * **Suicide Squad (0.510):** Masih dalam dunia DC, tetapi pendekatan dari sisi anti-hero dan tim penjahat.
+
+ 3. **Film dari Marvel / Genre Serupa**
+
+    * **The Wolverine (0.540)** dan **X-Men: Days of Future Past (0.537)**: Meski bukan DC, namun memiliki tema superhero, kekuatan super, dan dilema moral.
+
+    > Meski beda semesta (Marvel vs DC), genre dan tema serupa masih membuat film-film ini dianggap relevan sebagai rekomendasi.
+
+ 4. **Film Sci-Fi Fantasi Umum**
+
+    * **Avatar (0.514)** dan **Jupiter Ascending (0.508)**: Lebih banyak mengandung elemen fiksi ilmiah dan petualangan luar angkasa, tetapi mempertahankan nuansa epik dan visual kuat.
+
+ 5. **Superhero Unik atau Parodi**
+
+    * **Mystery Men (0.500)** dan **The Shadow (0.503)**: Lebih ke arah parodi atau superhero klasik, nilai similarity lebih ke struktur cerita dan tema superhero.
+
+---
+
+**Visualisasi Hasil Distribusi Skor Kemiripan**:
   - **Metode**: Bar plot untuk 10 skor kemiripan tertinggi.
   - **Visualisasi**:
 
     ![Distribusi Skor Kemiripan untuk Superman](./Images/Rekomendasi.png)
-    
-  - **Insight**: 
-  
-      Berikut adalah poin-poin utama dari visualisasi distribusi skor kemiripan untuk rekomendasi film mirip "Superman":
 
-      * **Skor Kemiripan Tertinggi:**
+**Insight**
 
-        * *Man of Steel* — **0.690**
-        * *Superman II* — **0.648**
-        * *Superman III* — **0.569**
+Berikut adalah poin-poin utama dari visualisasi distribusi skor kemiripan untuk rekomendasi film mirip "Superman":
 
-      * **Skor Rata-rata Kemiripan:**
+* **Skor Kemiripan Tertinggi:**
 
-        * Ditandai dengan garis merah putus-putus di grafik
-        * Nilainya adalah **0.554**
+  * *Man of Steel* — **0.688**
+  * *Superman II* — **0.636**
+  * *Superman III* — **0.563**
 
-      * **Film dengan Skor di Bawah Rata-rata tetapi Masih Relevan:**
+* **Skor Rata-rata Kemiripan:**
 
-        * *The Wolverine* — 0.541
-        * *X-Men: Days of Future Past* — 0.538
-        * *Avatar* — 0.514
-        * *Suicide Squad* — 0.512
-        * *Jupiter Ascending* — 0.508
-        * *The Shadow* — 0.503
+  * Ditandai dengan garis merah putus-putus di grafik
+  * Nilainya adalah **0.550**
 
-      * **Kesimpulan:**
+* **Kesimpulan:**
 
-        * Sebagian besar film memiliki skor kemiripan yang cukup dekat dengan nilai rata-rata.
-        * Rekomendasi teratas sangat relevan karena berasal dari seri film *Superman* sendiri.
-        * Film lain yang direkomendasikan juga memiliki kemiripan tematik atau genre dengan *Superman*, meskipun skornya sedikit di bawah rata-rata.
-
-
-
+  * Sebagian besar film memiliki skor kemiripan yang cukup dekat dengan nilai rata-rata.
+  * Rekomendasi teratas sangat relevan karena berasal dari seri film *Superman* sendiri.
+  * Film lain yang direkomendasikan juga memiliki kemiripan tematik atau genre dengan *Superman*, meskipun skornya sedikit di bawah rata-rata.
 
 ---
 
@@ -533,7 +617,7 @@ Evaluasi sistem rekomendasi berbasis *Content-Based Filtering* dalam proyek ini 
 
 ---
 
-### **1 Tujuan Evaluasi**
+### **1. Tujuan Evaluasi**
 Tujuan utama evaluasi adalah untuk memastikan bahwa sistem rekomendasi dapat menghasilkan daftar film yang relevan berdasarkan preferensi pengguna, yang dalam hal ini diwakili oleh genre film input. Dengan pendekatan *Content-Based Filtering*, sistem diharapkan mampu menangkap pola kesamaan konten (genre) antara film input dan film yang direkomendasikan. Evaluasi ini juga bertujuan untuk:
 - Mengukur ketepatan rekomendasi (apakah film yang direkomendasikan benar-benar sesuai dengan genre film input).
 - Mengukur kelengkapan rekomendasi (apakah sistem mampu mencakup semua genre penting dari film input).
@@ -541,7 +625,7 @@ Tujuan utama evaluasi adalah untuk memastikan bahwa sistem rekomendasi dapat men
 
 ---
 
-### **2 Metrik Evaluasi**
+### **2. Metrik Evaluasi**
 Evaluasi dilakukan dengan menggunakan tiga metrik standar yang umum digunakan dalam sistem rekomendasi, yaitu **Precision@10**, **Recall@10**, dan **F1-Score@10**. Berikut adalah penjelasan rinci untuk masing-masing metrik:
 
 #### **2.1 Precision@10**
@@ -576,7 +660,7 @@ Evaluasi dilakukan dengan menggunakan tiga metrik standar yang umum digunakan da
 
 ---
 
-### **3 Proses Evaluasi**
+### **3. Proses Evaluasi**
 Proses evaluasi dilakukan secara sistematis dengan langkah-langkah berikut:
 1. **Pemilihan Film Input**: Film "Superman" dipilih sebagai contoh film input untuk evaluasi.
 2. **Identifikasi Genre Film Input**: Genre dari "Superman" adalah ["Action", "Adventure", "Science Fiction"].
@@ -588,8 +672,8 @@ Proses evaluasi dilakukan secara sistematis dengan langkah-langkah berikut:
    - **F1-Score@10**: Menggabungkan Precision@10 dan Recall@10 menggunakan rumus rata-rata harmonik.
 ---
 
-### **4 Hasil Evaluasi**
-Berikut adalah contoh perhitungan manual hasil evaluasi untuk 3 genre film input "Superman":
+### **4 Contoh Perhitungan Manual Hasil Evaluasi **
+Berikut adalah **contoh** perhitungan manual hasil evaluasi untuk 3 genre film input "Superman":
 
 - **Genre Film Input**: ["Action", "Adventure", "Science Fiction"]
 - **Daftar Film yang Direkomendasikan dan Genre-nya**:
@@ -604,7 +688,7 @@ Berikut adalah contoh perhitungan manual hasil evaluasi untuk 3 genre film input
   9. *Jupiter Ascending*: ["Action", "Adventure", "Science Fiction"]
   10. *The Shadow*: ["Action", "Adventure", "Fantasy", "Science Fiction"]
 
-#### **4.1 Perhitungan Precision@10**
+#### **4.1 Contoh Perhitungan Precision@10 **
 - Berikut contoh perhitungan manual untuk setiap film rekomendasi, proporsi genre yang relevan dihitung sebagai $$\frac{|G_{\text{input}} \cap G_i|}{|G_i|}$$
 - Precision untuk setiap film, yaitu:
    - Man of Steel: 3/3 = 1.0 (3 genre cocok dari 3 genre).
@@ -623,7 +707,7 @@ Berikut adalah contoh perhitungan manual hasil evaluasi untuk 3 genre film input
   $$\text{Precision@10} = \frac{1.0 + 1.0 + 1.0 + 1.0 + 1.0 + 1.0 + 1.0 + 0.75 + 1.0 + 0.75}{10} = 0.94$$
 
 
-#### **4.2 Perhitungan Recall@10**
+#### **4.2 Contoh Perhitungan Recall@10**
 
 - Berikut contoh perhitungan manual Recall, Misalnya semua film yang direkomendasikan memiliki **ketiga genre** yang sama persis dengan film input (misalnya: Action, Adventure, Sci-Fi), maka:
 
@@ -648,65 +732,63 @@ $$\text{Recall}_i = \frac{3}{3} = 1.0$$
 
 
 
-#### **4.3 Perhitungan F1-Score@10**
+#### **4.3 Contoh Perhitungan F1-Score@10**
 - Menggunakan nilai Precision@10 (0.94) dan Recall@10 (1.0):
   
   $$\text{F1-Score@10} = 2 \times \frac{0.94 \times 1.0}{0.94 + 1.0} = 2 \times \frac{0.94}{1.94} \approx 0.969$$
 
-#### **4.4 Ringkasan Hasil**
-- **Precision@10**: 0.94
-- **Recall@10**: 1.0
-- **F1-Score@10**: 0.969
+#### **4.4 Contoh Ringkasan Hasil**
+- **Precision@10** = 0.94
+- **Recall@10** = 1.0
+- **F1-Score@10** = 0.969
 
 
 ---
-### **5 Analisis Hasil Evaluasi**
-Hasil evaluasi menunjukkan performa yang sangat baik dari sistem rekomendasi berbasis *Content-Based Filtering*. Berikut adalah analisis mendalam untuk setiap metrik:
 
-#### **5.1 Analisis Precision@10**
-- Nilai Precision@10 sebesar 0.94 menunjukkan bahwa 94% genre dalam film yang direkomendasikan relevan dengan genre film input "Superman". 
-- Dari 10 film yang direkomendasikan, 7 film memiliki kecocokan sempurna (semua genrenya sesuai dengan film input), sementara 2 film (*Suicide Squad* dan *The Shadow*) memiliki genre tambahan yang tidak ada di film input ("Crime" dan "Fantasy"), sehingga menurunkan sedikit nilai precision.
-- Implikasi: Sistem sangat akurat dalam memilih film dengan genre yang sesuai, meskipun ada sedikit "kebisingan" dari genre tambahan yang tidak relevan.
+>Berdasarkan hasil evaluasi, sistem rekomendasi berbasis *Content-Based Filtering* dalam proyek ini terbukti sangat efektif dalam memberikan rekomendasi film yang relevan berdasarkan genre. Dengan  dengan nilai Precision\@k sebesar 0,92, yang berarti bahwa 92% dari prediksi yang diberikan dalam top-k merupakan relevan atau benar. Sementara itu, Recall\@k mencapai angka sempurna yaitu 1,0, menandakan bahwa seluruh item relevan berhasil terjaring dalam top-k hasil prediksi. Kombinasi kedua metrik tersebut menghasilkan nilai F1-Score\@k sebesar 0,96, yang mencerminkan keseimbangan yang sangat baik antara presisi dan cakupan. Hasil ini menunjukkan bahwa model sangat efektif dalam merekomendasikan atau mengklasifikasikan item secara akurat dalam top-k prediksi.
 
-#### **5.2 Analisis Recall@10**
-- Nilai Recall@10 sebesar 1.0 menunjukkan bahwa semua genre dari film input ("Action", "Adventure", "Science Fiction") berhasil ditemukan dalam setiap film yang direkomendasikan.
-- Ini menandakan bahwa sistem tidak melewatkan elemen penting dari preferensi pengguna berdasarkan genre, sehingga kelengkapan rekomendasi sangat tinggi.
-- Implikasi: Sistem mampu menangkap keseluruhan profil konten film input, yang merupakan kekuatan utama pendekatan *Content-Based Filtering*.
-
-#### **5.3 Analisis F1-Score@10**
-- Nilai F1-Score@10 sebesar 0.969 mencerminkan keseimbangan yang sangat baik antara precision dan recall.
-- Nilai ini mendekati 1.0, yang menunjukkan bahwa sistem tidak hanya akurat tetapi juga lengkap dalam memberikan rekomendasi.
-- Implikasi: Sistem ini dapat diandalkan untuk memberikan pengalaman pengguna yang memuaskan karena menggabungkan relevansi tinggi dengan cakupan genre yang lengkap.
-
-#### **5.4 Analisis Konteks dan Kelemahan Potensial**
-- **Konteks**: Hasil ini sangat positif karena film input "Superman" memiliki genre yang umum dan banyak ditemukan dalam dataset (Action, Adventure, Science Fiction), sehingga sistem memiliki banyak kandidat film serupa untuk dipilih.
-- **Kelemahan Potensial**: Jika film input memiliki genre yang lebih spesifik atau langka (misalnya, "Documentary" atau "Musical"), performa sistem mungkin menurun karena keterbatasan variasi genre dalam dataset. Selain itu, pendekatan berbasis genre saja mungkin tidak cukup untuk menangkap nuansa preferensi pengguna yang lebih kompleks, seperti tema cerita atau gaya penyutradaraan.
-
-
->Berdasarkan hasil evaluasi, sistem rekomendasi berbasis *Content-Based Filtering* dalam proyek ini terbukti sangat efektif dalam memberikan rekomendasi film yang relevan berdasarkan genre. Dengan Precision@10 sebesar 0.94, Recall@10 sebesar 1.0, dan F1-Score@10 sebesar 0.969, sistem ini berhasil menangkap preferensi pengguna dengan akurat dan lengkap. Hasil ini mendukung tujuan proyek untuk meningkatkan penemuan konten dan kepuasan pengguna pada platform streaming. Namun, untuk meningkatkan robustitas sistem, evaluasi lebih lanjut dengan film input dari genre yang lebih beragam dan analisis fitur konten tambahan (misalnya, aktor atau sutradara) dapat dipertimbangkan.
 
 ---
 
 
 ## Kesimpulan
 
-Proyek ini berhasil mengembangkan sistem rekomendasi film berbasis konten yang dapat memberikan rekomendasi relevan berdasarkan metadata film. Sistem ini efektif dalam membantu pengguna menemukan film yang sesuai dengan preferensi mereka dan memiliki potensi untuk meningkatkan *engagement* pada platform streaming. Untuk pengembangan lebih lanjut, saya menyarankan integrasi pendekatan hybrid (kombinasi berbasis konten dan kolaboratif) serta evaluasi dengan data pengguna aktual.
+Sistem rekomendasi berbasis konten ini telah menunjukkan hasil yang memuaskan dalam memberikan rekomendasi film yang relevan. Dengan pengembangan lebih lanjut, sistem ini dapat menjadi alat yang lebih efektif untuk membantu pengguna menemukan film yang sesuai dengan preferensi mereka dan memiliki potensi untuk meningkatkan *engagement* pada platform streaming.
 
-1. **Sistem Rekomendasi Berbasis Konten**:
-   - Sistem rekomendasi berhasil memberikan rekomendasi film yang relevan berdasarkan fitur seperti genre, kata kunci, pemeran, tagline, dan popularitas.
-   - Film dengan skor kemiripan tertinggi memiliki genre dan tema yang sangat mirip dengan film referensi.
+####  **Exploratory Data Analysis (EDA)**
 
-2. **Evaluasi Sistem**:
-   - **Precision@k**: 0.94 (Sistem memiliki tingkat ketepatan yang baik dalam merekomendasikan film dengan genre yang sesuai.)
-   - **Recall@k**: 0.975 hasil pembulatan adalah 1.0 (Sistem mampu mencakup sebagian besar genre dari film referensi dalam rekomendasi.)
-   - **F1-Score@k**: 0.957 hasil pembulatan adalah 0.96 (Menunjukkan keseimbangan antara ketepatan dan kelengkapan rekomendasi.)
+Analisis data eksploratif memberikan pemahaman mendalam terhadap karakteristik film dalam dataset:
 
-3. **Visualisasi Distribusi Skor Kemiripan**:
-   - Film dengan skor kemiripan tertinggi berasal dari franchise yang sama atau memiliki tema serupa.
-   - Rata-rata skor kemiripan menunjukkan bahwa sebagian besar rekomendasi cukup relevan.
+* **Genre Drama Paling Populer**, disusul oleh **Comedy** dan **Thriller**, menandakan ketertarikan publik dan tingginya produksi terhadap genre-genre ini.
+* **Bahasa Inggris Mendominasi**, dengan distribusi bahasa lain sangat rendah, menunjukkan dominasi industri film Hollywood secara global.
+* **Mayoritas Film Sudah Dirilis**, artinya data sangat fokus pada film yang tersedia untuk analisis performa dan rekomendasi.
+* **Puncak Produksi Film Terjadi antara 2005–2015**, dengan tren meningkat sejak 1970-an, lalu menurun setelah 2015 (kemungkinan karena pandemi atau keterbatasan data terbaru).
+* **Popularitas Tertinggi Dimiliki Film Blockbuster seperti *Minions***, sementara film dengan popularitas sangat rendah didominasi oleh film indie, niche, atau distribusi terbatas — mencerminkan kesenjangan jangkauan audiens yang besar.
 
-4. **Rekomendasi Pengembangan**:
-   - Menggabungkan *collaborative filtering* untuk rekomendasi yang lebih beragam.
-   - Menambahkan data interaksi pengguna untuk personalisasi lebih lanjut.
-   - Mengoptimalkan performa untuk dataset yang lebih besar.
+####  **Modeling & Hasil Rekomendasi**
+
+* Sistem berhasil merekomendasikan film-film yang **relevan secara tematik dan genrenya** terhadap film acuan, yaitu *Superman (1978)*.
+* **Man of Steel**, *Superman II*, hingga film Marvel seperti *X-Men* dan *The Wolverine* muncul sebagai hasil karena kemiripan naratif dan karakteristik superhero.
+* Ini menunjukkan bahwa model mampu **menangkap hubungan semantik dan struktural** antarfilm, tidak hanya berdasarkan nama atau studio saja.
+
+####  **Evaluasi Sistem (Content-Based Filtering)**
+
+* **Precision\@k = 0.92**, **Recall\@k = 1.0**, dan **F1-Score\@k = 0.958** membuktikan bahwa sistem memiliki **kinerja luar biasa** dalam memberikan rekomendasi yang akurat dan lengkap.
+* Artinya, hampir semua film yang direkomendasikan **tepat sasaran**, dan **tidak ada film penting yang terlewatkan**.
+
+
+#### **Kesimpulan Keseluruhan Sistem Rekomendasi Berbasis Konten**
+
+Sistem rekomendasi film berbasis konten ini menunjukkan hasil yang **kuat dan dapat diandalkan**. Dengan pemahaman yang baik terhadap fitur-fitur film (genre, bahasa, popularitas, dll), sistem mampu:
+
+* Memberikan **rekomendasi yang relevan**
+* Menangkap **kesamaan tematik maupun naratif** antarfilm
+* Memenuhi ekspektasi evaluasi melalui metrik performa yang sangat tinggi
+* Sebagian besar film memiliki skor kemiripan yang cukup dekat dengan nilai rata-rata.
+* Rekomendasi teratas sangat relevan karena berasal dari seri film *Superman* sendiri.
+* Film lain yang direkomendasikan juga memiliki kemiripan tematik atau genre dengan *Superman*, meskipun skornya sedikit di bawah rata-rata.
+
+
+
+
 
