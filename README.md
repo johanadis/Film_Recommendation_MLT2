@@ -241,169 +241,122 @@ Exploratory Data Analysis (EDA) merupakan langkah penting dalam memahami karakte
       
 ---
 
-## Data Preparation
-Tahap ini melibatkan pembersihan dan transformasi data agar siap digunakan dalam pemodelan. Proses ini sangat penting untuk memastikan bahwa data yang digunakan dalam model adalah bersih, konsisten, dan relevan.
+## Data Preprocessing
 
-### Data Preprocessing
-Berikut adalah langkah-langkah rinci yang dilakukan dalam proses *data preprocessing*, beserta alasan, metode, dan dampaknya terhadap kualitas data:
-
-#### 1. Penggabungan Dataset
+### Penggabungan Dataset
 - **Deskripsi**: Dataset `tmdb_5000_movies.csv` dan `tmdb_5000_credits.csv` digabungkan menjadi satu DataFrame tunggal.
 - **Alasan**:  
-  - Dataset awal terpisah tidak memungkinkan analisis holistik. Penggabungan ini mengintegrasikan informasi metadata film (seperti genre dan popularitas) dengan data pemeran (cast) untuk menciptakan representasi yang lebih lengkap dari setiap film.
-  - Informasi pemeran dapat menjadi fitur penting dalam sistem rekomendasi berbasis konten, karena pengguna sering kali menyukai film dengan aktor tertentu.
+  - Dataset awal terpisah tidak memungkinkan analisis holistik. Penggabungan ini mengintegrasikan informasi metadata film (seperti genre, kata kunci, dan popularitas) dengan data pemeran (*cast*) untuk menciptakan representasi yang lebih lengkap dari setiap film.
+  - Informasi pemeran menjadi fitur penting dalam sistem rekomendasi berbasis konten karena pengguna sering kali menyukai film dengan aktor tertentu.
 - **Metode**:  
   - Menggunakan fungsi `pd.merge()` dari library Pandas dengan parameter `on='movie_id'` dan `how='inner'` untuk memastikan hanya film dengan ID yang cocok yang disertakan.
-  - Contoh kode:
-    ```python
-    import pandas as pd
-    movies = pd.read_csv('tmdb_5000_movies.csv')
-    credits = pd.read_csv('tmdb_5000_credits.csv')
-    df = pd.merge(movies, credits, on='movie_id', how='inner')
-    ```
 - **Dampak**: Dataset yang dihasilkan memiliki 4.803 baris dan semua kolom dari kedua file, memberikan informasi yang lebih kaya untuk analisis dan pemodelan.
 
-#### 2. Pemeriksaan dan Penanganan Duplikasi
-- **Deskripsi**: Memeriksa apakah ada duplikat berdasarkan `movie_id` dan `title`.
-- **Alasan**:  
-  - Duplikasi dapat menyebabkan bias dalam analisis dan pemodelan, seperti over-representasi film tertentu dalam rekomendasi.
-  - Memastikan setiap film hanya muncul sekali meningkatkan integritas data.
-- **Metode**:  
-  - Menggunakan `df.duplicated(subset=['movie_id']).sum()` untuk mendeteksi duplikat berdasarkan `movie_id`.
-  - Menggunakan `df.drop_duplicates(subset=['movie_id'], keep='first')` jika duplikat ditemukan.
-- **Hasil**: Tidak ada duplikat yang signifikan dalam dataset ini, sehingga tidak ada data yang dihapus.
-- **Dampak**: Data tetap konsisten dan bebas dari redundansi.
+## Data Preparation
 
-#### 3. Penanganan Nilai Hilang
-- **Deskripsi**: Mengidentifikasi dan menangani nilai hilang pada kolom `overview` dan `tagline`.
-- **Alasan**:  
-  - Nilai hilang pada kolom teks dapat menyebabkan error saat pemrosesan teks atau hilangnya informasi penting dalam ekstraksi fitur.
-  - Mengisi nilai hilang dengan string kosong memungkinkan pemrosesan tanpa kehilangan baris data.
-- **Metode**:  
-  - Menggunakan `df['overview'].fillna('')` dan `df['tagline'].fillna('')` untuk mengganti nilai `NaN` dengan string kosong.
-  - Contoh kode:
-    ```python
-    df['overview'] = df['overview'].fillna('')
-    df['tagline'] = df['tagline'].fillna('')
-    ```
-- **Hasil**: Sebanyak 3 nilai hilang pada `overview` dan 128 nilai hilang pada `tagline` berhasil ditangani.
-- **Dampak**: Semua baris data tetap dipertahankan, dan kolom teks dapat diproses tanpa error.
+Berikut adalah langkah-langkah rinci yang dilakukan dalam proses *data Preparation*, beserta alasan, metode, dan dampaknya terhadap kualitas data:
 
-#### 4. Parsing Data JSON
-- **Deskripsi**: Mengubah kolom JSON (`genres`, `keywords`, `cast`) menjadi daftar string yang dapat digunakan.
-- **Alasan**:  
-  - Data dalam format JSON tidak dapat langsung digunakan untuk analisis atau pemodelan; perlu diekstrak menjadi format yang lebih sederhana.
-  - Mengekstrak nama genre, kata kunci, dan pemeran memungkinkan penggunaannya sebagai fitur dalam sistem rekomendasi.
-- **Metode**:  
-  - Menggunakan `json.loads()` untuk mengurai string JSON, diikuti dengan fungsi kustom untuk mengekstrak hanya nama-nama yang relevan.
-  - Membatasi `cast` hingga 5 pemeran utama untuk mengurangi kompleksitas.
-  - Contoh kode:
-    ```python
-    import json
-    def parse_json(data):
-        if pd.isna(data):
-            return []
-        return [item['name'] for item in json.loads(data)]
-    
-    df['genres'] = df['genres'].apply(parse_json)
-    df['keywords'] = df['keywords'].apply(parse_json)
-    df['cast'] = df['cast'].apply(lambda x: parse_json(x)[:5])
-    ```
-- **Hasil**: Kolom `genres`, `keywords`, dan `cast` kini berisi daftar string (contoh: `['Action', 'Adventure']`).
-- **Dampak**: Data JSON yang terstruktur menjadi fitur yang dapat dimanfaatkan untuk analisis dan pemodelan.
+### **Data Cleaning**
 
-#### 5. Pembersihan Teks
-- **Deskripsi**: Membersihkan teks pada kolom `overview` dan `tagline` dengan menghapus karakter khusus, mengubah ke huruf kecil, dan menghapus *stopwords*.
-- **Alasan**:  
-  - Karakter khusus dan kapitalisasi yang tidak konsisten dapat mengganggu proses vektorisasi teks.
-  - Menghapus *stopwords* (kata umum seperti "the", "and") meningkatkan fokus pada kata-kata yang bermakna.
-- **Metode**:  
-  - Menggunakan library `re` untuk pembersihan dan `nltk` untuk *stopwords*.
-  - Contoh kode:
-    ```python
-    import re
-    from nltk.corpus import stopwords
-    stop_words = set(stopwords.words('english'))
-    
-    def clean_text(text):
-        text = re.sub(r'[^a-zA-Z\s]', '', text.lower())
-        return ' '.join([word for word in text.split() if word not in stop_words])
-    
-    df['overview'] = df['overview'].apply(clean_text)
-    df['tagline'] = df['tagline'].apply(clean_text)
-    ```
-- **Hasil**: Teks menjadi lebih bersih dan terstandarisasi (contoh: "The Dark Knight Rises" → "dark knight rises").
-- **Dampak**: Meningkatkan kualitas vektorisasi teks dan relevansi fitur yang dihasilkan.
+Pada tahap ini, dilakukan pembersihan dan penyesuaian data agar dataset siap digunakan untuk analisis dan pemodelan. Berikut penjelasan detail setiap langkahnya:
 
-#### 6. Kombinasi Fitur Teks
-- **Deskripsi**: Menggabungkan kolom `overview`, `tagline`, `genres`, `keywords`, dan `cast` menjadi satu kolom teks tunggal (`combined_features`).
-- **Alasan**:  
-  - Menggabungkan semua fitur teks memberikan representasi yang lebih komprehensif dari setiap film.
-  - Memungkinkan sistem rekomendasi untuk mempertimbangkan semua aspek konten secara bersamaan.
-- **Metode**:  
-  - Menggunakan operasi string concatenation dengan spasi sebagai pemisah.
-  - Contoh kode:
-    ```python
-    df['combined_features'] = (df['overview'] + ' ' + 
-                               df['tagline'] + ' ' + 
-                               df['genres'].apply(' '.join) + ' ' + 
-                               df['keywords'].apply(' '.join) + ' ' + 
-                               df['cast'].apply(' '.join))
-    ```
-- **Hasil**: Kolom baru berisi teks gabungan (contoh: "dark knight rises action crime drama batman christian bale").
-- **Dampak**: Representasi teks yang kaya untuk setiap film, siap untuk vektorisasi.
+**Langkah-langkah Data Cleaning**
 
-#### 7. TF-IDF Vectorization
-- **Deskripsi**: Mengubah kolom `combined_features` menjadi matriks TF-IDF.
-- **Alasan**:  
-  - TF-IDF (*Term Frequency-Inverse Document Frequency*) mengonversi teks menjadi representasi numerik yang menekankan kata-kata unik dan relevan.
-  - Mengurangi bobot kata-kata umum dan meningkatkan bobot kata-kata spesifik, sehingga meningkatkan kualitas rekomendasi.
-- **Metode**:  
-  - Menggunakan `TfidfVectorizer` dari Scikit-learn dengan parameter `stop_words='english'` dan `max_features=5000` untuk membatasi dimensi.
-  - Contoh kode:
-    ```python
-    from sklearn.feature_extraction.text import TfidfVectorizer
-    tfidf = TfidfVectorizer(stop_words='english', max_features=5000)
-    tfidf_matrix = tfidf.fit_transform(df['combined_features'])
-    ```
-- **Hasil**: Matriks sparse dengan ukuran (4803, 5000), mewakili 4.803 film dan 5.000 fitur TF-IDF.
-- **Dampak**: Data teks kini dalam format numerik yang dapat digunakan untuk perhitungan kemiripan.
+1. **Menghapus Kolom Duplikat dan Tidak Relevan**
+   - Setelah penggabungan dua dataset utama, kolom `id` dihapus karena sudah ada kolom `movie_id` yang nilainya sama. Ini mencegah duplikasi informasi dan menjaga konsistensi data.
+   - Kolom `title_y` dihapus karena merupakan hasil penggabungan dari dua dataset dan nilainya identik dengan `title_x`. Dengan demikian, hanya satu kolom judul yang digunakan untuk menghindari kebingungan.
 
-#### 8. Normalisasi Fitur Numerik
-- **Deskripsi**: Menormalisasi kolom `popularity` ke skala 0-1.
-- **Alasan**:  
-  - Skala `popularity` yang bervariasi luas (0 hingga >1000) dapat mendominasi fitur teks jika tidak dinormalisasi.
-  - Normalisasi memastikan semua fitur memiliki kontribusi yang seimbang dalam perhitungan kemiripan.
-- **Metode**:  
-  - Menggunakan `MinMaxScaler` dari Scikit-learn.
-  - Contoh kode:
-    ```python
-    from sklearn.preprocessing import MinMaxScaler
-    scaler = MinMaxScaler()
-    popularity_scaled = scaler.fit_transform(df[['popularity']])
-    ```
-- **Hasil**: Nilai `popularity` kini berada dalam rentang 0-1.
-- **Dampak**: Fitur numerik siap digabungkan dengan matriks TF-IDF tanpa bias skala.
+2. **Mengubah Nama Kolom agar Konsisten**
+   - Kolom hasil penggabungan yang bernama `title_x` diubah namanya menjadi `title`. Tujuannya agar penamaan kolom lebih ringkas, konsisten, dan mudah digunakan pada proses selanjutnya.
 
-#### 9. Penggabungan Matriks Fitur
-- **Deskripsi**: Menggabungkan matriks TF-IDF dengan fitur `popularity` yang dinormalisasi.
-- **Alasan**:  
-  - Mengintegrasikan informasi teks dan numerik untuk menciptakan representasi fitur yang lengkap.
-  - Memungkinkan sistem rekomendasi mempertimbangkan popularitas sebagai faktor tambahan.
-- **Metode**:  
-  - Menggunakan `hstack` dari `scipy.sparse` untuk menggabungkan matriks sparse dan array numerik.
-  - Contoh kode:
-    ```python
-    from scipy.sparse import hstack
-    final_matrix = hstack([tfidf_matrix, popularity_scaled])
-    ```
-- **Hasil**: Matriks fitur akhir dengan ukuran (4803, 5001).
-- **Dampak**: Data siap untuk perhitungan *cosine similarity* dalam tahap pemodelan.
+3. **Membuat Salinan DataFrame**
+   - DataFrame hasil pembersihan disalin ke variabel baru (`df_pre`). Salinan ini dibuat agar data asli tetap aman, sehingga jika terjadi kesalahan pada proses berikutnya, data awal tidak akan rusak dan bisa digunakan kembali.
 
-### Ringkasan Data Preprocessing
-- **Langkah Utama**: Penggabungan dataset, penanganan nilai hilang, parsing JSON, pembersihan teks, kombinasi fitur, TF-IDF, normalisasi, dan penggabungan matriks.
-- **Hasil Akhir**: Matriks fitur yang bersih, konsisten, dan representatif untuk setiap film.
-- **Implikasi Bisnis**: Data yang telah diproses meningkatkan akurasi rekomendasi, yang pada akhirnya mendukung tujuan proyek untuk meningkatkan penemuan konten dan kepuasan pengguna.
+4. **Menangani Nilai Kosong pada Fitur Teks**
+   - Nilai kosong (NaN) pada kolom `tagline` dan `overview` diisi dengan string kosong. Langkah ini penting agar proses pemrosesan teks (seperti TF-IDF) tidak mengalami error akibat adanya nilai kosong.
+
+
+**Hasil Akhir Data Cleaning**
+
+Setelah proses data cleaning:
+- Dataset gabungan sudah tidak memiliki kolom duplikat atau tidak relevan.
+- Semua nilai pada kolom teks utama (`tagline` dan `overview`) sudah terisi, sehingga tidak ada nilai kosong.
+- Data sudah siap untuk proses ekstraksi fitur dan analisis lebih lanjut.
+
+### Ekstraksi
+
+> Pada tahap ini dilakukan proses persiapan data agar fitur-fitur yang digunakan sudah dalam format yang sesuai untuk analisis lebih lanjut.
+
+* **Ekstraksi Kata Kunci (Keywords)**: Kolom `keywords`, yang awalnya berupa string JSON, diubah menjadi list nama-nama kata kunci menggunakan `json.loads` dan list comprehension. Ini memudahkan proses ekstraksi fitur berbasis teks.
+
+* **Ekstraksi Pemeran (Cast)**: Kolom `cast`, juga berupa string JSON, diubah menjadi list nama-nama pemeran untuk setiap film dengan cara serupa.
+
+* **Seleksi Kolom**: Hanya kolom-kolom yang relevan untuk analisis lanjutan yang disimpan, yaitu `title`, `genres_list`, `keywords_list`, `overview`, `tagline`, `cast_list`, dan `popularity`.
+
+Tujuan
+
+* Mengubah struktur data menjadi lebih mudah diproses oleh model machine learning.
+* Menyederhanakan data agar fokus pada informasi penting terkait konten dan metadata film.
+* Mengurangi bias dan meningkatkan akurasi model.
+
+### Normalisasi Data Popularity
+Karena popularity memiliki nilai numerik yang besar, maka dilakukan normalisasi agar fitur ini tidak mendominasi perhitungan jarak atau kemiripan dibanding fitur lain seperti genre, keyword, dan lainnya yang telah dinormalisasi dalam bentuk vektor (seperti TF-IDF atau one-hot encoding).
+
+Langkah-langkah normalisasi:
+- Mengambil data kolom `popularity` dari DataFrame.
+- Inisialisasi objek `MinMaxScaler` dari scikit-learn.
+- Melakukan fit dan transformasi data popularity agar berada pada rentang 0 hingga 1.
+
+### Transformasi Fitur Teks dan Numerik
+
+> Pada tahap ini, dilakukan ekstraksi dan transformasi beberapa fitur penting dari dataset film untuk membentuk representasi numerik yang bisa digunakan dalam pemodelan machine learning. Fitur-fitur yang digunakan mencakup genre, ringkasan film (*overview*), kata kunci (*keywords*), pemeran (*cast*), tagline, dan tingkat popularitas.
+
+* **Genre**: Kolom `genres_list`, yang berisi daftar genre untuk setiap film, dikonversi menjadi format biner. Setiap genre direpresentasikan sebagai kolom, dan setiap film diberi tanda 1 jika memiliki genre tersebut, atau 0 jika tidak.
+
+* **Overview**: Kolom `overview`, yang berisi ringkasan film dalam bentuk teks, diubah menjadi vektor menggunakan teknik TF-IDF (Term Frequency-Inverse Document Frequency). Hanya 5000 kata yang paling informatif yang dipilih untuk mewakili isi dari kolom ini.
+
+* **Keywords**: Kata kunci dari setiap film digabungkan menjadi satu string per baris, kemudian diproses menggunakan TF-IDF dengan batas maksimum 3000 fitur. Tujuannya adalah untuk menangkap konteks atau topik unik dari setiap film.
+
+* **Cast**: Nama-nama pemeran utama dalam `cast_list` digabung menjadi string dan diubah menjadi representasi TF-IDF dengan 2000 fitur teratas. Ini membantu mengidentifikasi aktor-aktor yang sering muncul atau berpengaruh dalam film.
+
+* **Tagline**: Kalimat singkat promosi film (tagline) juga ditransformasikan menjadi vektor TF-IDF, dibatasi hingga 2000 fitur terpenting.
+
+* **Popularitas**: Menggunakan nilai Popularitas yang sudah di normalisasikan, agar fitur ini tidak mendominasi perhitungan jarak atau kemiripan dibanding fitur lain seperti genre, keyword, dan lainnya yang telah dinormalisasi dalam bentuk vektor (seperti TF-IDF atau one-hot encoding).
+
+**Proses:**
+
+1. **Ekstraksi Genre (One-hot Encoding):**
+
+   * Menggunakan `MultiLabelBinarizer()` untuk mengubah daftar genre (`genres_list`) menjadi matriks biner.
+   * Setiap kolom merepresentasikan satu genre; setiap baris menunjukkan apakah film tersebut memiliki genre tersebut atau tidak.
+
+2. **Ekstraksi Fitur dari Overview (Deskripsi Film):**
+
+   * Menggunakan `TfidfVectorizer` dengan `stop_words='english'` dan batas maksimum 5000 fitur.
+   * Tujuannya adalah merepresentasikan ringkasan (`overview`) dalam bentuk vektor numerik berdasarkan frekuensi kemunculan kata penting.
+
+3. **Ekstraksi Fitur dari Keywords (Kata Kunci):**
+
+   * Sama seperti overview, tapi diterapkan pada `keywords_list` yang digabungkan menjadi satu string per film.
+   * Jumlah fitur maksimum dibatasi hingga 3000.
+
+4. **Ekstraksi Fitur dari Cast (Pemeran):**
+
+   * Mengubah daftar aktor utama (`cast_list`) menjadi teks gabungan, lalu diekstraksi menggunakan TF-IDF.
+   * Fitur ini membatasi hingga 2000 kata unik paling informatif.
+
+5. **Ekstraksi Fitur dari Tagline:**
+
+   * Sama seperti overview dan keywords, tapi diterapkan pada `tagline` (slogan film).
+   * Jumlah fitur juga dibatasi hingga 2000.
+
+> Setelah semua fitur diekstraksi dan ditransformasi, seluruh vektor tersebut digabungkan secara horizontal untuk membentuk satu matriks fitur utama. Matriks inilah yang nantinya akan digunakan dalam proses pelatihan model atau analisis clustering.
+
+Tujuan
+
+* Mengubah data teks menjadi representasi numerik yang bisa diproses oleh algoritma machine learning.
+* Menggabungkan berbagai sumber informasi (konten film, metadata, hingga statistik popularitas) untuk membentuk fitur yang lebih kaya dan informatif.
+
 
 ---
 
