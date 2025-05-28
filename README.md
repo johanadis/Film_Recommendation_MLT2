@@ -625,7 +625,7 @@ Proses evaluasi dilakukan secara sistematis dengan langkah-langkah berikut:
    - **F1-Score@10**: Menggabungkan Precision@10 dan Recall@10 menggunakan rumus rata-rata harmonik.
 ---
 
-### **4 Contoh Perhitungan Manual Hasil Evaluasi **
+### **4 Contoh Perhitungan Manual Hasil Evaluasi**
 Berikut adalah **contoh** perhitungan manual hasil evaluasi untuk 3 genre film input "Superman":
 
 - **Genre Film Input**: ["Action", "Adventure", "Science Fiction"]
@@ -641,7 +641,7 @@ Berikut adalah **contoh** perhitungan manual hasil evaluasi untuk 3 genre film i
   9. *Jupiter Ascending*: ["Action", "Adventure", "Science Fiction"]
   10. *The Shadow*: ["Action", "Adventure", "Fantasy", "Science Fiction"]
 
-#### **4.1 Contoh Perhitungan Precision@10 **
+#### **4.1 Contoh Perhitungan Precision@10**
 - Berikut contoh perhitungan manual untuk setiap film rekomendasi, proporsi genre yang relevan dihitung sebagai $$\frac{|G_{\text{input}} \cap G_i|}{|G_i|}$$
 - Precision untuk setiap film, yaitu:
    - Man of Steel: 3/3 = 1.0 (3 genre cocok dari 3 genre).
